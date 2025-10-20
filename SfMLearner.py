@@ -4,7 +4,7 @@ import time
 import math
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
+import tf_slim as slim
 from data_loader import DataLoader
 from nets import *
 from utils import *

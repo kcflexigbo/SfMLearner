@@ -8,7 +8,7 @@ from glob import glob
 from SfMLearner import SfMLearner
 from kitti_eval.pose_evaluation_utils import dump_pose_seq_TUM
 
-flags = tf.app.flags
+flags = tf.compat.v1.flags
 flags.DEFINE_integer("batch_size", 1, "The size of of a sample batch")
 flags.DEFINE_integer("img_height", 128, "Image height")
 flags.DEFINE_integer("img_width", 416, "Image width")

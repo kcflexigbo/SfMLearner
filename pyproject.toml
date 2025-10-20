@@ -1,0 +1,14 @@
+[project]
+name = "sfmlearner"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "matplotlib>=3.10.7",
+    "numpy>=2.2.6",
+    "pillow>=12.0.0",
+    "scipy>=1.15.3",
+    "tensorflow>=2.20.0",
+    "tf-slim>=1.1.0",
+]

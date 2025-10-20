@@ -5,8 +5,9 @@ import random
 import numpy as np
 from SfMLearner import SfMLearner
 import os
+from types import SimpleNamespace
 
-flags = tf.app.flags
+flags = tf.compat.v1.flags
 flags.DEFINE_string("dataset_dir", "", "Dataset directory")
 flags.DEFINE_string("checkpoint_dir", "./checkpoints/", "Directory name to save the checkpoints")
 flags.DEFINE_string("init_checkpoint_file", None, "Specific checkpoint file to initialize from")
@@ -27,7 +28,7 @@ FLAGS = flags.FLAGS
 
 def main(_):
     seed = 8964
-    tf.set_random_seed(seed)
+    tf.random.set_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
 
@@ -37,8 +38,17 @@ def main(_):
     if not os.path.exists(FLAGS.checkpoint_dir):
         os.makedirs(FLAGS.checkpoint_dir)
         
+    # Copy absl flags into a plain object so SfMLearner can set extra
+    # attributes (e.g. num_source) without triggering Abseil's unknown
+    # flag protection when assigning to FLAGS.
+    opt_dict = {}
+    for name, flag in flags.FLAGS.__flags.items():
+        # flag is a _FlagValue object; use its .value
+        opt_dict[name] = flag.value
+    opts = SimpleNamespace(**opt_dict)
+
     sfm = SfMLearner()
-    sfm.train(FLAGS)
+    sfm.train(opts)
 
 if __name__ == '__main__':
-    tf.app.run()
+    tf.compat.v1.app.run()
