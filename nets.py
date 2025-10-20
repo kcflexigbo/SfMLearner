@@ -1,6 +1,7 @@
 from __future__ import division
 import tensorflow as tf
 import numpy as np
+import keras
 
 # Range of disparity/inverse depth values
 DISP_SCALING = 10
@@ -22,50 +23,50 @@ def resize_like(inputs, ref):
 
 def build_pose_exp_net(H, W, num_source, do_exp=True):
     """
-    Builds the Pose and Explainability network as a tf.keras.Model.
+    Builds the Pose and Explainability network as a keras.Model.
     """
     # --- Define shared layer arguments to replace slim.arg_scope ---
     conv_args = {
-        'kernel_regularizer': tf.keras.regularizers.l2(0.05),
+        'kernel_regularizer': keras.regularizers.l2(0.05),
         'activation': 'relu',
         'padding': 'same'  # slim.conv2d defaults to 'SAME' padding
     }
     deconv_args = {
-        'kernel_regularizer': tf.keras.regularizers.l2(0.05),
+        'kernel_regularizer': keras.regularizers.l2(0.05),
         'activation': 'relu',
         'padding': 'same'  # slim.conv2d_transpose defaults to 'SAME'
     }
     # Args for final prediction layers (no activation)
     pred_args = {
-        'kernel_regularizer': tf.keras.regularizers.l2(0.05),
+        'kernel_regularizer': keras.regularizers.l2(0.05),
         'activation': None,
         'padding': 'same'
     }
 
     # --- Define Inputs ---
-    tgt_image = tf.keras.layers.Input(shape=(H, W, 3), name='tgt_image')
-    src_image_stack = tf.keras.layers.Input(shape=(H, W, 3 * num_source), name='src_image_stack')
+    tgt_image = keras.layers.Input(shape=(H, W, 3), name='tgt_image')
+    src_image_stack = keras.layers.Input(shape=(H, W, 3 * num_source), name='src_image_stack')
     
-    inputs = tf.keras.layers.Concatenate(axis=3)([tgt_image, src_image_stack])
+    inputs = keras.layers.Concatenate(axis=3)([tgt_image, src_image_stack])
 
     # --- Shared Encoder ---
-    cnv1 = tf.keras.layers.Conv2D(16, (7, 7), strides=2, name='cnv1', **conv_args)(inputs)
-    cnv2 = tf.keras.layers.Conv2D(32, (5, 5), strides=2, name='cnv2', **conv_args)(cnv1)
-    cnv3 = tf.keras.layers.Conv2D(64, (3, 3), strides=2, name='cnv3', **conv_args)(cnv2)
-    cnv4 = tf.keras.layers.Conv2D(128, (3, 3), strides=2, name='cnv4', **conv_args)(cnv3)
-    cnv5 = tf.keras.layers.Conv2D(256, (3, 3), strides=2, name='cnv5', **conv_args)(cnv4)
+    cnv1 = keras.layers.Conv2D(16, (7, 7), strides=2, name='cnv1', **conv_args)(inputs)
+    cnv2 = keras.layers.Conv2D(32, (5, 5), strides=2, name='cnv2', **conv_args)(cnv1)
+    cnv3 = keras.layers.Conv2D(64, (3, 3), strides=2, name='cnv3', **conv_args)(cnv2)
+    cnv4 = keras.layers.Conv2D(128, (3, 3), strides=2, name='cnv4', **conv_args)(cnv3)
+    cnv5 = keras.layers.Conv2D(256, (3, 3), strides=2, name='cnv5', **conv_args)(cnv4)
 
     # --- Pose Specific Layers ---
     with tf.name_scope('pose'):
-        cnv6 = tf.keras.layers.Conv2D(256, (3, 3), strides=2, name='cnv6', **conv_args)(cnv5)
-        cnv7 = tf.keras.layers.Conv2D(256, (3, 3), strides=2, name='cnv7', **conv_args)(cnv6)
+        cnv6 = keras.layers.Conv2D(256, (3, 3), strides=2, name='cnv6', **conv_args)(cnv5)
+        cnv7 = keras.layers.Conv2D(256, (3, 3), strides=2, name='cnv7', **conv_args)(cnv6)
         
-        pose_pred = tf.keras.layers.Conv2D(6 * num_source, (1, 1), strides=1, name='pose_pred', **pred_args)(cnv7)
-        pose_avg = tf.keras.layers.GlobalAveragePooling2D(name='pose_avg')(pose_pred)
-        pose_final = tf.keras.layers.Lambda(
+        pose_pred = keras.layers.Conv2D(6 * num_source, (1, 1), strides=1, name='pose_pred', **pred_args)(cnv7)
+        pose_avg = keras.layers.GlobalAveragePooling2D(name='pose_avg')(pose_pred)
+        pose_final = keras.layers.Lambda(
             lambda x: 0.01 * x, name='pose_scale'
         )(pose_avg)
-        pose_final = tf.keras.layers.Reshape((num_source, 6), name='pose_final')(pose_final)
+        pose_final = keras.layers.Reshape((num_source, 6), name='pose_final')(pose_final)
 
     # --- Dictionary for endpoints (replaces collections) ---
     endpoints = {
@@ -78,19 +79,19 @@ def build_pose_exp_net(H, W, num_source, do_exp=True):
     # --- Explainability Mask Specific Layers ---
     if do_exp:
         with tf.name_scope('exp'):
-            upcnv5 = tf.keras.layers.Conv2DTranspose(256, (3, 3), strides=2, name='upcnv5', **deconv_args)(cnv5)
+            upcnv5 = keras.layers.Conv2DTranspose(256, (3, 3), strides=2, name='upcnv5', **deconv_args)(cnv5)
 
-            upcnv4 = tf.keras.layers.Conv2DTranspose(128, (3, 3), strides=2, name='upcnv4', **deconv_args)(upcnv5)
-            mask4 = tf.keras.layers.Conv2D(num_source * 2, (3, 3), strides=1, name='mask4', **pred_args)(upcnv4)
+            upcnv4 = keras.layers.Conv2DTranspose(128, (3, 3), strides=2, name='upcnv4', **deconv_args)(upcnv5)
+            mask4 = keras.layers.Conv2D(num_source * 2, (3, 3), strides=1, name='mask4', **pred_args)(upcnv4)
 
-            upcnv3 = tf.keras.layers.Conv2DTranspose(64, (3, 3), strides=2, name='upcnv3', **deconv_args)(upcnv4)
-            mask3 = tf.keras.layers.Conv2D(num_source * 2, (3, 3), strides=1, name='mask3', **pred_args)(upcnv3)
+            upcnv3 = keras.layers.Conv2DTranspose(64, (3, 3), strides=2, name='upcnv3', **deconv_args)(upcnv4)
+            mask3 = keras.layers.Conv2D(num_source * 2, (3, 3), strides=1, name='mask3', **pred_args)(upcnv3)
             
-            upcnv2 = tf.keras.layers.Conv2DTranspose(32, (5, 5), strides=2, name='upcnv2', **deconv_args)(upcnv3)
-            mask2 = tf.keras.layers.Conv2D(num_source * 2, (5, 5), strides=1, name='mask2', **pred_args)(upcnv2)
+            upcnv2 = keras.layers.Conv2DTranspose(32, (5, 5), strides=2, name='upcnv2', **deconv_args)(upcnv3)
+            mask2 = keras.layers.Conv2D(num_source * 2, (5, 5), strides=1, name='mask2', **pred_args)(upcnv2)
 
-            upcnv1 = tf.keras.layers.Conv2DTranspose(16, (7, 7), strides=2, name='upcnv1', **deconv_args)(upcnv2)
-            mask1 = tf.keras.layers.Conv2D(num_source * 2, (7, 7), strides=1, name='mask1', **pred_args)(upcnv1)
+            upcnv1 = keras.layers.Conv2DTranspose(16, (7, 7), strides=2, name='upcnv1', **deconv_args)(upcnv2)
+            mask1 = keras.layers.Conv2D(num_source * 2, (7, 7), strides=1, name='mask1', **pred_args)(upcnv1)
             
             masks_out = [mask1, mask2, mask3, mask4]
             endpoints.update({
@@ -105,7 +106,7 @@ def build_pose_exp_net(H, W, num_source, do_exp=True):
         'masks': masks_out,
         'endpoints': endpoints
     }
-    model = tf.keras.Model(
+    model = keras.Model(
         inputs={'tgt_image': tgt_image, 'src_image_stack': src_image_stack},
         outputs=model_outputs,
         name='pose_exp_net'
@@ -115,95 +116,95 @@ def build_pose_exp_net(H, W, num_source, do_exp=True):
 
 def build_disp_net(H, W):
     """
-    Builds the Disparity (Depth) network as a tf.keras.Model.
+    Builds the Disparity (Depth) network as a keras.Model.
     """
     # --- Define shared layer arguments ---
     conv_args = {
-        'kernel_regularizer': tf.keras.regularizers.l2(0.05),
+        'kernel_regularizer': keras.regularizers.l2(0.05),
         'activation': 'relu',
         'padding': 'same'
     }
     deconv_args = {
-        'kernel_regularizer': tf.keras.regularizers.l2(0.05),
+        'kernel_regularizer': keras.regularizers.l2(0.05),
         'activation': 'relu',
         'padding': 'same'
     }
     # Args for disparity (disp) layers
     disp_args = {
-        'kernel_regularizer': tf.keras.regularizers.l2(0.05),
+        'kernel_regularizer': keras.regularizers.l2(0.05),
         'activation': 'sigmoid',  # Original used tf.sigmoid
         'padding': 'same'
     }
     
     # --- Define Input ---
-    tgt_image = tf.keras.layers.Input(shape=(H, W, 3), name='tgt_image')
+    tgt_image = keras.layers.Input(shape=(H, W, 3), name='tgt_image')
     
     # --- Scaling helper function ---
     def scale_and_shift(x):
         return x * DISP_SCALING + MIN_DISP
 
     # --- Encoder ---
-    cnv1 = tf.keras.layers.Conv2D(32, (7, 7), strides=2, name='cnv1', **conv_args)(tgt_image)
-    cnv1b = tf.keras.layers.Conv2D(32, (7, 7), strides=1, name='cnv1b', **conv_args)(cnv1)
-    cnv2 = tf.keras.layers.Conv2D(64, (5, 5), strides=2, name='cnv2', **conv_args)(cnv1b)
-    cnv2b = tf.keras.layers.Conv2D(64, (5, 5), strides=1, name='cnv2b', **conv_args)(cnv2)
-    cnv3 = tf.keras.layers.Conv2D(128, (3, 3), strides=2, name='cnv3', **conv_args)(cnv2b)
-    cnv3b = tf.keras.layers.Conv2D(128, (3, 3), strides=1, name='cnv3b', **conv_args)(cnv3)
-    cnv4 = tf.keras.layers.Conv2D(256, (3, 3), strides=2, name='cnv4', **conv_args)(cnv3b)
-    cnv4b = tf.keras.layers.Conv2D(256, (3, 3), strides=1, name='cnv4b', **conv_args)(cnv4)
-    cnv5 = tf.keras.layers.Conv2D(512, (3, 3), strides=2, name='cnv5', **conv_args)(cnv4b)
-    cnv5b = tf.keras.layers.Conv2D(512, (3, 3), strides=1, name='cnv5b', **conv_args)(cnv5)
-    cnv6 = tf.keras.layers.Conv2D(512, (3, 3), strides=2, name='cnv6', **conv_args)(cnv5b)
-    cnv6b = tf.keras.layers.Conv2D(512, (3, 3), strides=1, name='cnv6b', **conv_args)(cnv6)
-    cnv7 = tf.keras.layers.Conv2D(512, (3, 3), strides=2, name='cnv7', **conv_args)(cnv6b)
-    cnv7b = tf.keras.layers.Conv2D(512, (3, 3), strides=1, name='cnv7b', **conv_args)(cnv7)
+    cnv1 = keras.layers.Conv2D(32, (7, 7), strides=2, name='cnv1', **conv_args)(tgt_image)
+    cnv1b = keras.layers.Conv2D(32, (7, 7), strides=1, name='cnv1b', **conv_args)(cnv1)
+    cnv2 = keras.layers.Conv2D(64, (5, 5), strides=2, name='cnv2', **conv_args)(cnv1b)
+    cnv2b = keras.layers.Conv2D(64, (5, 5), strides=1, name='cnv2b', **conv_args)(cnv2)
+    cnv3 = keras.layers.Conv2D(128, (3, 3), strides=2, name='cnv3', **conv_args)(cnv2b)
+    cnv3b = keras.layers.Conv2D(128, (3, 3), strides=1, name='cnv3b', **conv_args)(cnv3)
+    cnv4 = keras.layers.Conv2D(256, (3, 3), strides=2, name='cnv4', **conv_args)(cnv3b)
+    cnv4b = keras.layers.Conv2D(256, (3, 3), strides=1, name='cnv4b', **conv_args)(cnv4)
+    cnv5 = keras.layers.Conv2D(512, (3, 3), strides=2, name='cnv5', **conv_args)(cnv4b)
+    cnv5b = keras.layers.Conv2D(512, (3, 3), strides=1, name='cnv5b', **conv_args)(cnv5)
+    cnv6 = keras.layers.Conv2D(512, (3, 3), strides=2, name='cnv6', **conv_args)(cnv5b)
+    cnv6b = keras.layers.Conv2D(512, (3, 3), strides=1, name='cnv6b', **conv_args)(cnv6)
+    cnv7 = keras.layers.Conv2D(512, (3, 3), strides=2, name='cnv7', **conv_args)(cnv6b)
+    cnv7b = keras.layers.Conv2D(512, (3, 3), strides=1, name='cnv7b', **conv_args)(cnv7)
 
     # --- Decoder ---
-    upcnv7 = tf.keras.layers.Conv2DTranspose(512, (3, 3), strides=2, name='upcnv7', **deconv_args)(cnv7b)
+    upcnv7 = keras.layers.Conv2DTranspose(512, (3, 3), strides=2, name='upcnv7', **deconv_args)(cnv7b)
     upcnv7 = resize_like(upcnv7, cnv6b)
-    i7_in = tf.keras.layers.Concatenate(axis=3)([upcnv7, cnv6b])
-    icnv7 = tf.keras.layers.Conv2D(512, (3, 3), strides=1, name='icnv7', **conv_args)(i7_in)
+    i7_in = keras.layers.Concatenate(axis=3)([upcnv7, cnv6b])
+    icnv7 = keras.layers.Conv2D(512, (3, 3), strides=1, name='icnv7', **conv_args)(i7_in)
 
-    upcnv6 = tf.keras.layers.Conv2DTranspose(512, (3, 3), strides=2, name='upcnv6', **deconv_args)(icnv7)
+    upcnv6 = keras.layers.Conv2DTranspose(512, (3, 3), strides=2, name='upcnv6', **deconv_args)(icnv7)
     upcnv6 = resize_like(upcnv6, cnv5b)
-    i6_in = tf.keras.layers.Concatenate(axis=3)([upcnv6, cnv5b])
-    icnv6 = tf.keras.layers.Conv2D(512, (3, 3), strides=1, name='icnv6', **conv_args)(i6_in)
+    i6_in = keras.layers.Concatenate(axis=3)([upcnv6, cnv5b])
+    icnv6 = keras.layers.Conv2D(512, (3, 3), strides=1, name='icnv6', **conv_args)(i6_in)
 
-    upcnv5 = tf.keras.layers.Conv2DTranspose(256, (3, 3), strides=2, name='upcnv5', **deconv_args)(icnv6)
+    upcnv5 = keras.layers.Conv2DTranspose(256, (3, 3), strides=2, name='upcnv5', **deconv_args)(icnv6)
     upcnv5 = resize_like(upcnv5, cnv4b)
-    i5_in = tf.keras.layers.Concatenate(axis=3)([upcnv5, cnv4b])
-    icnv5 = tf.keras.layers.Conv2D(256, (3, 3), strides=1, name='icnv5', **conv_args)(i5_in)
+    i5_in = keras.layers.Concatenate(axis=3)([upcnv5, cnv4b])
+    icnv5 = keras.layers.Conv2D(256, (3, 3), strides=1, name='icnv5', **conv_args)(i5_in)
 
-    upcnv4 = tf.keras.layers.Conv2DTranspose(128, (3, 3), strides=2, name='upcnv4', **deconv_args)(icnv5)
-    i4_in = tf.keras.layers.Concatenate(axis=3)([upcnv4, cnv3b])
-    icnv4 = tf.keras.layers.Conv2D(128, (3, 3), strides=1, name='icnv4', **conv_args)(i4_in)
-    disp4_raw = tf.keras.layers.Conv2D(1, (3, 3), strides=1, name='disp4_raw', **disp_args)(icnv4)
-    disp4 = tf.keras.layers.Lambda(scale_and_shift, name='disp4')(disp4_raw)
+    upcnv4 = keras.layers.Conv2DTranspose(128, (3, 3), strides=2, name='upcnv4', **deconv_args)(icnv5)
+    i4_in = keras.layers.Concatenate(axis=3)([upcnv4, cnv3b])
+    icnv4 = keras.layers.Conv2D(128, (3, 3), strides=1, name='icnv4', **conv_args)(i4_in)
+    disp4_raw = keras.layers.Conv2D(1, (3, 3), strides=1, name='disp4_raw', **disp_args)(icnv4)
+    disp4 = keras.layers.Lambda(scale_and_shift, name='disp4')(disp4_raw)
     
     # Using Keras Resizing layer instead of tf.image.resize_bilinear
-    disp4_up = tf.keras.layers.Resizing(H // 4, W // 4, interpolation='bilinear', name='disp4_up')(disp4)
+    disp4_up = keras.layers.Resizing(H // 4, W // 4, interpolation='bilinear', name='disp4_up')(disp4)
 
-    upcnv3 = tf.keras.layers.Conv2DTranspose(64, (3, 3), strides=2, name='upcnv3', **deconv_args)(icnv4)
-    i3_in = tf.keras.layers.Concatenate(axis=3)([upcnv3, cnv2b, disp4_up])
-    icnv3 = tf.keras.layers.Conv2D(64, (3, 3), strides=1, name='icnv3', **conv_args)(i3_in)
-    disp3_raw = tf.keras.layers.Conv2D(1, (3, 3), strides=1, name='disp3_raw', **disp_args)(icnv3)
-    disp3 = tf.keras.layers.Lambda(scale_and_shift, name='disp3')(disp3_raw)
+    upcnv3 = keras.layers.Conv2DTranspose(64, (3, 3), strides=2, name='upcnv3', **deconv_args)(icnv4)
+    i3_in = keras.layers.Concatenate(axis=3)([upcnv3, cnv2b, disp4_up])
+    icnv3 = keras.layers.Conv2D(64, (3, 3), strides=1, name='icnv3', **conv_args)(i3_in)
+    disp3_raw = keras.layers.Conv2D(1, (3, 3), strides=1, name='disp3_raw', **disp_args)(icnv3)
+    disp3 = keras.layers.Lambda(scale_and_shift, name='disp3')(disp3_raw)
 
-    disp3_up = tf.keras.layers.Resizing(H // 2, W // 2, interpolation='bilinear', name='disp3_up')(disp3)
+    disp3_up = keras.layers.Resizing(H // 2, W // 2, interpolation='bilinear', name='disp3_up')(disp3)
 
-    upcnv2 = tf.keras.layers.Conv2DTranspose(32, (3, 3), strides=2, name='upcnv2', **deconv_args)(icnv3)
-    i2_in = tf.keras.layers.Concatenate(axis=3)([upcnv2, cnv1b, disp3_up])
-    icnv2 = tf.keras.layers.Conv2D(32, (3, 3), strides=1, name='icnv2', **conv_args)(i2_in)
-    disp2_raw = tf.keras.layers.Conv2D(1, (3, 3), strides=1, name='disp2_raw', **disp_args)(icnv2)
-    disp2 = tf.keras.layers.Lambda(scale_and_shift, name='disp2')(disp2_raw)
+    upcnv2 = keras.layers.Conv2DTranspose(32, (3, 3), strides=2, name='upcnv2', **deconv_args)(icnv3)
+    i2_in = keras.layers.Concatenate(axis=3)([upcnv2, cnv1b, disp3_up])
+    icnv2 = keras.layers.Conv2D(32, (3, 3), strides=1, name='icnv2', **conv_args)(i2_in)
+    disp2_raw = keras.layers.Conv2D(1, (3, 3), strides=1, name='disp2_raw', **disp_args)(icnv2)
+    disp2 = keras.layers.Lambda(scale_and_shift, name='disp2')(disp2_raw)
 
-    disp2_up = tf.keras.layers.Resizing(H, W, interpolation='bilinear', name='disp2_up')(disp2)
+    disp2_up = keras.layers.Resizing(H, W, interpolation='bilinear', name='disp2_up')(disp2)
 
-    upcnv1 = tf.keras.layers.Conv2DTranspose(16, (3, 3), strides=2, name='upcnv1', **deconv_args)(icnv2)
-    i1_in = tf.keras.layers.Concatenate(axis=3)([upcnv1, disp2_up])
-    icnv1 = tf.keras.layers.Conv2D(16, (3, 3), strides=1, name='icnv1', **conv_args)(i1_in)
-    disp1_raw = tf.keras.layers.Conv2D(1, (3, 3), strides=1, name='disp1_raw', **disp_args)(icnv1)
-    disp1 = tf.keras.layers.Lambda(scale_and_shift, name='disp1')(disp1_raw)
+    upcnv1 = keras.layers.Conv2DTranspose(16, (3, 3), strides=2, name='upcnv1', **deconv_args)(icnv2)
+    i1_in = keras.layers.Concatenate(axis=3)([upcnv1, disp2_up])
+    icnv1 = keras.layers.Conv2D(16, (3, 3), strides=1, name='icnv1', **conv_args)(i1_in)
+    disp1_raw = keras.layers.Conv2D(1, (3, 3), strides=1, name='disp1_raw', **disp_args)(icnv1)
+    disp1 = keras.layers.Lambda(scale_and_shift, name='disp1')(disp1_raw)
     
     # --- Collect endpoints ---
     endpoints = {
@@ -222,7 +223,7 @@ def build_disp_net(H, W):
         'endpoints': endpoints
     }
     
-    model = tf.keras.Model(
+    model = keras.Model(
         inputs={'tgt_image': tgt_image},
         outputs=model_outputs,
         name='disp_net'
