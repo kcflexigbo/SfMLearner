@@ -99,6 +99,21 @@ Then you can obtain predictions on, say `Seq. 9`, by running
 python test_kitti_pose.py --test_seq 9 --dataset_dir /path/to/KITTI/odometry/set/ --output_dir /path/to/output/directory/ --ckpt_file models/model-100280
 ```
 
+## NOTE
+THIS PROJECT NOW USES UV TO MANAGE DEPENDENCIES.
+AND THE NEW MIGRATION FOR TENSORFLOW HAS BEEN DONE.
+
+TO INSTALL USE:
+```bash
+uv sync
+```
+
+TO RUN ANY FILE, USE:
+```bash
+uv run <filename>
+```
+
+
 ## Other implementations
 [Pytorch](https://github.com/ClementPinard/SfmLearner-Pytorch) (by Clement Pinard)
 
