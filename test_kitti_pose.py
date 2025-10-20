@@ -60,7 +60,7 @@ def main():
                         FLAGS.img_width,
                         'pose',
                         FLAGS.seq_length)
-    saver = tf.train.Saver([var for var in tf.trainable_variables()]) 
+    saver = tf.compat.v1.train.Saver([var for var in tf.compat.v1.trainable_variables()]) 
 
     if not os.path.isdir(FLAGS.output_dir):
         os.makedirs(FLAGS.output_dir)
@@ -72,7 +72,7 @@ def main():
         times = f.readlines()
     times = np.array([float(s[:-1]) for s in times])
     max_src_offset = (FLAGS.seq_length - 1)//2
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         saver.restore(sess, FLAGS.ckpt_file)
         for tgt_idx in range(N):
             if not is_valid_sample(test_frames, tgt_idx, FLAGS.seq_length):

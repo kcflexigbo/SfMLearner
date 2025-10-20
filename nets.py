@@ -19,7 +19,7 @@ def resize_like(inputs, ref):
         return inputs
     
     # Use dynamic shape from ref for resizing
-    return tf.image.resize(inputs, tf.shape(ref)[1:3], method='nearest')
+    return tf.image.resize(inputs, tf.compat.v1.shape(ref)[1:3], method='nearest')
 
 def build_pose_exp_net(H, W, num_source, do_exp=True):
     """

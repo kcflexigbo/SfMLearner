@@ -6,7 +6,7 @@ import os
 import PIL.Image as pil
 from SfMLearner import SfMLearner
 
-flags = tf.app.flags
+flags = tf.compat.v1.flags
 flags.DEFINE_integer("batch_size", 4, "The size of of a sample batch")
 flags.DEFINE_integer("img_height", 128, "Image height")
 flags.DEFINE_integer("img_width", 416, "Image width")
@@ -28,10 +28,10 @@ def main(_):
                         img_width=FLAGS.img_width,
                         batch_size=FLAGS.batch_size,
                         mode='depth')
-    saver = tf.train.Saver([var for var in tf.model_variables()]) 
-    config = tf.ConfigProto()
+    saver = tf.compat.v1.train.Saver([var for var in tf.compat.v1.model_variables()]) 
+    config = tf.compat.v1.ConfigProto()
     config.gpu_options.allow_growth = True
-    with tf.Session(config=config) as sess:
+    with tf.compat.v1.Session(config=config) as sess:
         saver.restore(sess, FLAGS.ckpt_file)
         pred_all = []
         for t in range(0, len(test_files), FLAGS.batch_size):
@@ -59,4 +59,4 @@ def main(_):
         np.save(output_file, pred_all)
 
 if __name__ == '__main__':
-    tf.app.run()
+    tf.compat.v1.app.run()
